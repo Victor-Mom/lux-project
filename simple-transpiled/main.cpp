@@ -7,15 +7,6 @@
 
 using namespace std;
 using namespace lux;
-#include "lux/kit.hpp"
-#include "lux/define.cpp"
-#include <string.h>
-#include <vector>
-#include <set>
-#include <stdio.h>
-
-using namespace std;
-using namespace lux;
 
 int main()
 {
