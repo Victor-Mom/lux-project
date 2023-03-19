@@ -7,6 +7,16 @@
 
 using namespace std;
 using namespace lux;
+#include "lux/kit.hpp"
+#include "lux/define.cpp"
+#include <string.h>
+#include <vector>
+#include <set>
+#include <stdio.h>
+
+using namespace std;
+using namespace lux;
+
 int main()
 {
   kit::Agent gameState = kit::Agent();
@@ -15,13 +25,10 @@ int main()
 
   while (true)
   {
-    /** Do not edit! **/
     // wait for updates
     gameState.update();
 
     vector<string> actions = vector<string>();
-    
-    /** AI Code Goes Below! **/
 
     Player &player = gameState.players[gameState.id];
     Player &opponent = gameState.players[(gameState.id + 1) % 2];
@@ -41,29 +48,42 @@ int main()
       }
     }
 
-    // we iterate over all our units and do something with them
     for (int i = 0; i < player.units.size(); i++)
     {
       Unit unit = player.units[i];
+
       if (unit.isWorker() && unit.canAct())
       {
         if (unit.getCargoSpaceLeft() > 0)
         {
-          // if the unit is a worker and we have space in cargo, lets find the nearest resource tile and try to mine it
-          Cell *closestResourceTile;
+          Cell *closestResourceTile = nullptr;
           float closestDist = 9999999;
+
           for (auto it = resourceTiles.begin(); it != resourceTiles.end(); it++)
           {
             auto cell = *it;
-            if (cell->resource.type == ResourceType::coal && !player.researchedCoal()) continue;
-            if (cell->resource.type == ResourceType::uranium && !player.researchedUranium()) continue;
-            float dist = cell->pos.distanceTo(unit.pos);
-            if (dist < closestDist)
+
+            if ((cell->resource.type == ResourceType::wood) ||
+                (cell->resource.type == ResourceType::coal && player.researchPoints >= 50) ||
+                (cell->resource.type == ResourceType::uranium && player.researchPoints >= 200))
             {
-              closestDist = dist;
-              closestResourceTile = cell;
+              if (unit.getCargoSpaceLeft() == 0)
+                break;
+
+              float dist = cell->pos.distanceTo(unit.pos);
+
+              if (dist < closestDist)
+              {
+                closestDist = dist;
+                closestResourceTile = cell;
+              }
+            }
+            else
+            {
+              continue;
             }
           }
+
           if (closestResourceTile != nullptr)
           {
             auto dir = unit.pos.directionTo(closestResourceTile->pos);
@@ -72,28 +92,52 @@ int main()
         }
         else
         {
-          // if unit is a worker and there is no cargo space left, and we have cities, lets return to them
           if (player.cities.size() > 0)
           {
             auto city_iter = player.cities.begin();
             auto &city = city_iter->second;
 
             float closestDist = 999999;
-            CityTile *closestCityTile;
+            CityTile *closestCityTile = nullptr;
+
             for (auto &citytile : city.citytiles)
             {
               float dist = citytile.pos.distanceTo(unit.pos);
+
               if (dist < closestDist)
               {
                 closestCityTile = &citytile;
                 closestDist = dist;
               }
             }
+
             if (closestCityTile != nullptr)
             {
               auto dir = unit.pos.directionTo(closestCityTile->pos);
               actions.push_back(unit.move(dir));
             }
+          }
+        }
+      }
+    }
+
+
+
+    for (auto &kv : player.cities)
+    {
+      auto &city = kv.second;
+      for (CityTile &city_tile : city.citytiles)
+      {
+        if (city_tile.canAct())
+        {
+          // Modifiez le seuil pour augmenter la priorité de la recherche
+          if (player.units.size() < player.cityTileCount)
+          {
+            actions.push_back(city_tile.buildWorker());
+          }
+          else
+          {
+            actions.push_back(city_tile.research());
           }
         }
       }
